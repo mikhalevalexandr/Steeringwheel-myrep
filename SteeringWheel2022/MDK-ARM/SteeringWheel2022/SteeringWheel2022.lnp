@@ -8,6 +8,7 @@
 "steeringwheel2022\stm32f1xx_hal_msp.o"
 "steeringwheel2022\stm32f1xx_hal_timebase_tim.o"
 "steeringwheel2022\stm32f1xx_hal_gpio_ex.o"
+"steeringwheel2022\stm32f1xx_hal_can.o"
 "steeringwheel2022\stm32f1xx_hal.o"
 "steeringwheel2022\stm32f1xx_hal_rcc.o"
 "steeringwheel2022\stm32f1xx_hal_rcc_ex.o"
