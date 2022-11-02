@@ -32,7 +32,29 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#define MAX_BAT_LVL	4.15 // Volts - one battery max lvl
+#define MIN_BAT_LVL	3.0 // Volts - one battery min lvl 
+#define CELL_NUM	15 // number of cells in stack (18 is normal)
+#define STACK_NUM	2 // number of stacks in HV battery (8 is normal)
+#define HV_MAX_LVL MAX_BAT_LVL*CELL_NUM*STACK_NUM // Max Voltage of HV battery
+#define HV_MIN_LVL MIN_BAT_LVL*CELL_NUM*STACK_NUM // Min Voltage of HV battery
+#define STACK_MAX_LVL MAX_BAT_LVL*CELL_NUM // Max Voltage of HV battery
+#define STACK_MIN_LVL MIN_BAT_LVL*CELL_NUM // Min Voltage of HV battery
+#define GET_PERCENT(volt_lvl) (100.*(volt_lvl-STACK_MIN_LVL)/(STACK_MAX_LVL-STACK_MIN_LVL))
 
+/******Nextion params*********/
+#define N_TXT	"txt"
+#define N_BCO	"bco"
+#define N_VAL	"val"
+#define N_PCO	"pco"
+#define N_RADIO_GREEN	{0xF8, 0x00}
+#define N_RADIO_RED	{0x07, 0xE0}
+
+typedef struct
+{
+	uint32_t id;
+	uint8_t data[8];
+}	CAN_message_td;
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/

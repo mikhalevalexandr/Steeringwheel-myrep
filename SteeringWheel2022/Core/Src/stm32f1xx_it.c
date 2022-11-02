@@ -63,7 +63,10 @@ extern UART_HandleTypeDef huart1;
 extern TIM_HandleTypeDef htim2;
 
 /* USER CODE BEGIN EV */
-
+extern CAN_TxHeaderTypeDef pTxHeader;
+extern CAN_RxHeaderTypeDef pRxHeader;
+extern uint32_t TxMailbox;
+extern uint8_t TX_data[8];
 /* USER CODE END EV */
 
 /******************************************************************************/

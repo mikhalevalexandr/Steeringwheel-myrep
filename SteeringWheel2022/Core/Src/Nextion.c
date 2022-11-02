@@ -1,15 +1,47 @@
 #include "Nextion.h"
 #include "main.h"
 #include "cmsis_os.h"
-
+#include <stdio.h>
+#include <string.h>
+#include "NRF24.h"
 uint8_t Cmd_End[3]={0xFF, 0xFF, 0xFF};//command end sequence
-void NEXTION_SendString (char *ID, char *string)
+void NEXTION_SendString (char *id, char *param, char *string)
 {
 	char buf[50]= {0};
-	int len=sprintf (buf, "%s.txt=\"%s\"", ID, string);
+	int len= 0;
+	if (strncmp(param, "txt", 3) == 0)
+	{
+		len = sprintf (buf, "%s.%s=\"%s\"", id, param, string);
+	}
+	else
+	{
+//		len = sprintf (buf, "%s.%s=%s", id, param, string);
+	}
+//	osDelay(30);
 	HAL_UART_Transmit_DMA (&huart1, (uint8_t *)buf, len);
 	osDelay(30);
 	HAL_UART_Transmit_DMA (&huart1, Cmd_End, 3);
+	osDelay(10);
+//	HAL_UART_Transmit (&huart1, (uint8_t *)buf, len, 1000);
+//	HAL_UART_Transmit (&huart1, Cmd_End, 3, 100);
+}
+void NEXTION_SendInt (char *id, char *param, int string)
+{
+	char buf[50]= {0};
+	int len= 0;
+	if (strncmp(param, "txt", 3) == 0)
+	{
+//		len = sprintf (buf, "%s.%s=\"%s\"", id, param, string);
+	}
+	else
+	{
+		len = sprintf (buf, "%s.%s=%d", id, param, string);
+	}
+//	osDelay(30);
+	HAL_UART_Transmit_DMA (&huart1, (uint8_t *)buf, len);
+  osDelay(20);
+	HAL_UART_Transmit_DMA (&huart1, Cmd_End, 3);
+	osDelay(10);
 //	HAL_UART_Transmit (&huart1, (uint8_t *)buf, len, 1000);
 //	HAL_UART_Transmit (&huart1, Cmd_End, 3, 100);
 }

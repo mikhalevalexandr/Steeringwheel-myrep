@@ -45,3 +45,6 @@ steeringwheel2022\nextion.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/
 steeringwheel2022\nextion.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/queue.h
 steeringwheel2022\nextion.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/semphr.h
 steeringwheel2022\nextion.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/event_groups.h
+steeringwheel2022\nextion.o: F:\fs\keil\ARM\ARMCC\Bin\..\include\stdio.h
+steeringwheel2022\nextion.o: F:\fs\keil\ARM\ARMCC\Bin\..\include\string.h
+steeringwheel2022\nextion.o: ../Core/Inc/NRF24.h

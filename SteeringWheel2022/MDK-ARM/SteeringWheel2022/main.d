@@ -46,4 +46,7 @@ steeringwheel2022\main.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/sem
 steeringwheel2022\main.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/event_groups.h
 steeringwheel2022\main.o: ../Core/Inc/NRF24.h
 steeringwheel2022\main.o: F:\fs\keil\ARM\ARMCC\Bin\..\include\string.h
+steeringwheel2022\main.o: F:\fs\keil\ARM\ARMCC\Bin\..\include\stdio.h
 steeringwheel2022\main.o: ../Core/Inc/Nextion.h
+steeringwheel2022\main.o: F:\fs\keil\ARM\ARMCC\Bin\..\include\inttypes.h
+steeringwheel2022\main.o: F:\fs\keil\ARM\ARMCC\Bin\..\include\math.h

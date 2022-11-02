@@ -25,8 +25,10 @@
 /* USER CODE BEGIN Includes */
 #include "NRF24.h"
 #include <string.h>
+#include <stdio.h>
 #include "Nextion.h"
-
+#include <inttypes.h>
+#include <math.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -55,14 +57,37 @@ DMA_HandleTypeDef hdma_usart1_rx;
 osThreadId defaultTaskHandle;
 osThreadId RadioHandle;
 osThreadId DisplayHandle;
+osThreadId CANHandle;
 /* USER CODE BEGIN PV */
-char str1[20]={0};
-uint8_t recieve1=0x20;
-uint8_t UART_RX[20]={0};
-uint8_t buf1[1]={0};
-uint8_t buf2[1]={0};
+CAN_TxHeaderTypeDef pTxHeader;
+CAN_RxHeaderTypeDef pRxHeader;
+CAN_FilterTypeDef sFilterConfig;
+uint32_t CAN_TxMailbox;
+uint8_t CAN_TX_data[8], CAN_RX_data[8];
+/**Battery Begin**/
+
+uint16_t Cell_lvls_u16[8][18]={0};// Cell lvls from CAN
+float Cell_lvls_float[8][18]={0};// Cell lvls in Volts
+uint16_t Stack_lvls_u16[8]={0};// Stack lvls from CAN
+float Stack_lvls_float[8]={0};// Stack lvls in Volts
+
+/**Battery End**/
+
+/**AMI Begin**/
+
+uint8_t UART_RX[20]={0};// Message to display
+uint8_t recieve1=0x26;// Message from CAN
+/**AMI End**/
+
+/**nrf 104 (Radio) Begin**/
+uint8_t buf1[1]={0};// Buffer for sending by nrf104
+char str1[20]={0};// For nrf 104 debuging
+/**nrf 104 (Radio) End**/
+
+//uint8_t buf2[1]={0};
 uint8_t dt_reg=0;
 char Autonomius_mission[15]="Error";
+//uint8_t test_nextion_mes[13]= {0x53, 0x74, 0x61, 0x63, 0x6B, 0x30, 0x2E, 0x76, 0x61, 0x6C, 0x3D, 0x31, 0x30};
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -75,6 +100,7 @@ static void MX_CAN_Init(void);
 void StartDefaultTask(void const * argument);
 void Radio_send_task(void const * argument);
 void Display_task(void const * argument);
+void CAN_task(void const * argument);
 
 /* USER CODE BEGIN PFP */
 
@@ -154,6 +180,10 @@ int main(void)
   /* definition and creation of Display */
   osThreadDef(Display, Display_task, osPriorityNormal, 0, 128);
   DisplayHandle = osThreadCreate(osThread(Display), NULL);
+
+  /* definition and creation of CAN */
+  osThreadDef(CAN, CAN_task, osPriorityNormal, 0, 128);
+  CANHandle = osThreadCreate(osThread(CAN), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -290,7 +320,40 @@ static void MX_CAN_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN CAN_Init 2 */
+	pTxHeader.DLC = 8;
+	pTxHeader.IDE = CAN_ID_STD;
+	pTxHeader.RTR = CAN_RTR_DATA;
+	pTxHeader.StdId = 0x0002;
+	pTxHeader.TransmitGlobalTime = DISABLE;
 
+	sFilterConfig.FilterBank = 0;
+	sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
+	sFilterConfig.FilterFIFOAssignment = CAN_RX_FIFO0;
+	sFilterConfig.SlaveStartFilterBank = 0;
+	sFilterConfig.FilterIdHigh = 0x0000;
+	sFilterConfig.FilterIdLow = 0x0100<<5;
+	sFilterConfig.FilterMaskIdHigh = 0x0000;
+	sFilterConfig.FilterMaskIdLow = 0x07C0<<5;
+	sFilterConfig.FilterScale = CAN_FILTERSCALE_16BIT;
+	sFilterConfig.FilterActivation = ENABLE;
+  
+	if (HAL_CAN_ConfigFilter(&hcan, &sFilterConfig)!= HAL_OK)
+    {
+      // Filter configuration Error 
+      Error_Handler();
+    }
+  
+	if(HAL_CAN_Start(&hcan)!= HAL_OK)
+	{
+      //Start Error 
+		Error_Handler();
+    } 
+  /* Activate CAN RX notification */
+	if (HAL_CAN_ActivateNotification(&hcan, CAN_IT_RX_FIFO0_MSG_PENDING | CAN_IT_TX_MAILBOX_EMPTY) != HAL_OK)
+	{
+     /* Notification Error */
+		Error_Handler();
+	}
   /* USER CODE END CAN_Init 2 */
 
 }
@@ -438,10 +501,18 @@ static void MX_GPIO_Init(void)
 
 }
 
-/* USER  CODE BEGIN 4 */
+/* USER CODE BEGIN 4 */
 void HAL_UART_RxCpltCallback (UART_HandleTypeDef *haurt)
 {
 	HAL_UART_Receive_DMA (&huart1, UART_RX, sizeof(UART_RX));
+}
+
+void HAL_CAN_RxFifo0MsgPendingCallback (CAN_HandleTypeDef *hcan)
+{
+	HAL_CAN_GetRxMessage (hcan, CAN_RX_FIFO0, &pRxHeader, CAN_RX_data);
+}
+void HAL_CAN_TxMailbox0CompleteCallback (CAN_HandleTypeDef *hcan)
+{
 }
 /* USER CODE END 4 */
 
@@ -474,6 +545,8 @@ void Radio_send_task(void const * argument)
 {
   /* USER CODE BEGIN Radio_send_task */
 	uint8_t on=0x6F, off=0x85;
+	char green[2] = N_RADIO_GREEN;
+	char red[2] = N_RADIO_RED;
   /* Infinite loop */
   for(;;)
   {
@@ -482,13 +555,17 @@ void Radio_send_task(void const * argument)
 		{
 			memcpy(buf1, &on,1);
 			NRF24L01_Send(buf1);
-				LED_OFF;
+			NEXTION_SendInt ("r0", N_BCO, 2016);
+//			NEXTION_SendInt ("r0", N_PCO, 2016);
+			LED_OFF;
 		}
 		else if (!RadioBTN)
 		{
 			memcpy(buf1, &off,1);
 			NRF24L01_Send(buf1);
-		LED_ON;
+			NEXTION_SendInt ("r0", N_BCO, 63488);			
+//			NEXTION_SendInt ("r0", N_PCO, 63488);			
+			LED_ON;
 		}
 				dt_reg = NRF24_ReadReg(CONFIG);
 
@@ -532,10 +609,56 @@ void Display_task(void const * argument)
   /* Infinite loop */
   for(;;)
   {
-    osDelay(100);
-		NEXTION_SendString("AMI", current_mission(recieve1));		
+		osDelay(100);
+		NEXTION_SendInt ("r0", N_VAL, 0);			
+		NEXTION_SendString("AMI", N_TXT,current_mission(recieve1));		
+		osDelay(100);
+
   }
   /* USER CODE END Display_task */
+}
+
+/* USER CODE BEGIN Header_CAN_task */
+/**
+* @brief Function implementing the CAN thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_CAN_task */
+void CAN_task(void const * argument)
+{
+  /* USER CODE BEGIN CAN_task */
+	uint8_t stack_num = 0;
+	uint8_t cell_num = 0;
+	uint8_t stack_volt_perc = 10;
+	char stack_volt_perc_str[4] = {0,};
+	size_t stack_volt_perc_str_len = 0;
+	size_t uart_mes_id_len = 0;
+	char uart_mes_id[7] = {0};
+	size_t uart_mesprogress_id_len = 0;
+	char uart_mesprogress_id[7] = {0};
+	uint8_t ffdf[5] ="vvvvv";
+  /* Infinite loop */
+  for(;;)
+  {
+		osDelay(50);
+		stack_num = (pRxHeader.StdId - 0x100)/8;
+		if ((pRxHeader.StdId - 0x100)%8 == 4)
+		{
+			Stack_lvls_u16[stack_num] =(uint16_t)(CAN_RX_data[5]) * 0x100 + CAN_RX_data[4];
+			Stack_lvls_float[stack_num] =Stack_lvls_u16[stack_num]/100.;
+			stack_volt_perc = (uint8_t)(GET_PERCENT(Stack_lvls_float[stack_num]));
+			stack_volt_perc_str_len = sprintf(stack_volt_perc_str, "%"PRIu8"%%",stack_volt_perc);
+			uart_mes_id_len = sprintf(uart_mes_id, "S%"PRIu8"_perc",stack_num);
+			NEXTION_SendString (uart_mes_id, N_TXT, stack_volt_perc_str);
+			uart_mesprogress_id_len = sprintf(uart_mesprogress_id, "Stack%"PRIu8"",stack_num);
+//			NEXTION_SendString (uart_mesprogress_id, N_VAL, (char*)&stack_volt_perc);
+			NEXTION_SendInt (uart_mesprogress_id, N_VAL, stack_volt_perc);
+
+		}
+//    osDelay(5);
+  }
+  /* USER CODE END CAN_task */
 }
 
 /**
